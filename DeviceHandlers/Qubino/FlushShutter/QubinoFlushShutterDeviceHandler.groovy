@@ -197,7 +197,7 @@ metadata {
 							"Default value: 0.\n" +
 							"NOTE: After parameter change, first exclude module (without setting parameters to default value) then wait at least 30s and then re include the module!"
 				
-				input name: "param72", type: "number", range: "1..32767", required: false,
+				input name: "param72", type: "number", range: "0..32767", required: false,
 					title: "72. Slats tilting full turn time.\n" +
 						   "This parameter defines the time necessary for slats to make full turn (180 degrees).\n" +
 						   "Available settings:\n" +
@@ -216,7 +216,7 @@ metadata {
 							"1 - Slats return to previously set position in case of Z-wave control, push-button operation or when the lower limit switch is reached.\n" +
 							"Default value: 1."
 							
-				input name: "param74", type: "number", range: "1..32767", required: false,
+				input name: "param74", type: "number", range: "0..32767", required: false,
 					title: "74. Motor moving up/down time.\n" +
 						   "This parameter defines Shutter motor moving time of complete opening or complete closing.\n" +
 						   "Available settings:\n" +
@@ -225,7 +225,7 @@ metadata {
 						   "Default value: 0.\n" +
 						   "NOTE: Important is that the reference position to manually set moving time is always Shutter lower position!"
 
-				input name: "param76", type: "number", range: "1..127", required: false,
+				input name: "param76", type: "number", range: "0..127", required: false,
 					title: "76. Motor operation detection.\n" +
 						   "Power threshold to be interpreted when motor reach the limit switch.\n" +
 						   "Available settings:\n" +
