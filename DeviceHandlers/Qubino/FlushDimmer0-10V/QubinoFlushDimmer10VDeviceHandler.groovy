@@ -1,8 +1,8 @@
 /**
  *  Qubino Flush Dimmer 0-10V
  *	Device Handler 
- *	Version 1.0
- *  Date: 22.2.2017
+ *	Version 1.01
+ *  Date: 31.3.2017
  *	Author: Kristjan Jam&scaron;ek (Kjamsek), Goap d.o.o.
  *  Copyright 2017 Kristjan Jam&scaron;ek
  *
@@ -27,12 +27,12 @@
  *
  *
  *	TO-DO:
- *	- Implement Multichannel Association Command Class to add MC Association functionality and support configurable inputs.
  *  - Implement secure mode
  *
  *	CHANGELOG:
  *	0.99: Final release code cleanup and commenting
  *	1.00: Added comments to code for readability
+ *  1.01: Added support for configurable I1 input and MC Associations
  */
 metadata {
 	definition (name: "Qubino Flush Dimmer 0-10V", namespace: "Goap", author: "Kristjan Jam&scaron;ek") {
@@ -45,6 +45,8 @@ metadata {
 		
 		capability "Configuration" //Needed for configure() function to set MultiChannel Lifeline Association Set
 		capability "Temperature Measurement" //This capability is valid for devices with temperature sensors connected
+		
+		attribute "i1Sensor", "number" // custom attribute to store and display sensor value when I1 is configured as an additional sensor
 
 		command "setConfiguration" //command to issue Configuration Set commands to the module according to user preferences
 		command "setAssociation" //command to issue Association Set commands to the modules according to user preferences
@@ -69,7 +71,7 @@ metadata {
 				attributeState "level", action:"switch level.setLevel"
 			}
 	    }
-		standardTile("temperature", "device.temperature", width: 6, height: 3) {
+		standardTile("temperature", "device.temperature", width: 3, height: 3) {
 			state("temperature", label:'${currentValue} ${unit}', unit:'°', icon: 'st.Weather.weather2', backgroundColors: [
 				// Celsius Color Range
 				[value: 0, color: "#153591"],
@@ -89,6 +91,9 @@ metadata {
 				[value: 96, color: "#bc2323"]
 			])
 		}
+		standardTile("i1Sensor", "device.i1Sensor", decoration: "flat", width: 3, height: 3) {
+			state("i1Sensor", label:'I1 sensor: ${currentValue}', action:'setConfiguration')
+		}
 		standardTile("setConfiguration", "device.setConfiguration", decoration: "flat", width: 3, height: 3) {
 			state("setConfiguration", label:'Set Configuration', action:'setConfiguration')
 		}
@@ -97,12 +102,18 @@ metadata {
 		}
 
 		main("switch")
-		details(["switch", "temperature", "setConfiguration", "setAssociation"])
+		details(["switch", "temperature", "i1Sensor", "setConfiguration", "setAssociation"])
 	}
 	preferences {
 /**
 *			--------	CONFIGURATION PARAMETER SECTION	--------
 */
+				input (
+					type: "paragraph",
+					element: "paragraph",
+					title: "CONFIGURATION PARAMETERS:",
+					description: "Configuration parameter settings."
+				)
 				input name: "param1", type: "enum", required: false,
 					options: ["0" : "0 - mono-stable switch type (push button)",
 							  "1" : "1 - Bi-stable switch type",
@@ -322,6 +333,12 @@ metadata {
 /**
 *			--------	ASSOCIATION GROUP SECTION	--------
 */
+				input (
+					type: "paragraph",
+					element: "paragraph",
+					title: "ASSOCIATION GROUPS:",
+					description: "Singlechannel association settings."
+				)
 				input name: "assocGroup2", type: "text", required: false,
 					title: "Association group 2: \n" +
 						   "Basic On/Off command will be sent to associated nodes, according to the state of I1 input, when the module detects an I1 input state change.\n" +
@@ -348,6 +365,41 @@ metadata {
 					title: "Association group 6: \n" +
 						   "Multilevel Sensor Reports will be sent to associated nodes, according to the state of a connected temperature sensor.\n" +
 						   "NOTE: Insert the node Id value of the devices you wish to associate this group with. Multiple nodeIds can also be set at once by separating individual values by a comma (2,3,...)."
+						   
+				input (
+					type: "paragraph",
+					element: "paragraph",
+					title: "MULTICHANNEL ASSOCIATION GROUPS:",
+					description: "Multichannel association settings. These are valid when the device is included with a temperature sensor or I1 is configured as a sensor."
+				)
+				input name: "ep1McAssocGroup2", type: "text", required: false,
+					title: "MC Endpoint 1 Association group 2: \n" +
+						   "Basic On/Off command will be sent to associated nodes, according to the state of I1 input, when the module detects an I1 input state change.\n" +
+						   "NOTE: Insert the combination of Node Id / Endpoint Id values (for example; for node Id 4 and endpoint 2 the values should be entered as 4/2, if no endpoint should be used just the node Id is required, for example; 4) of the devices you wish to associate this group with. Multiple nodes and endpoints can also be set at once by separating individual values by a comma (3/2,4,5/3,...)."
+						   
+				input name: "ep1McAssocGroup3", type: "text", required: false,
+					title: "MC Endpoint 1 Association group 3: \n" +
+						   "StartLevelChange or StopLevelChange command will be sent to associated nodes, according to the state of I1 input, when the module detects an I1 input state change.\n" +
+						   "Not that the configuration parameter 1 needs to be set to monostable switch type for this group to work correctly." +
+						   "NOTE: Insert the combination of Node Id / Endpoint Id values (for example; for node Id 4 and endpoint 2 the values should be entered as 4/2, if no endpoint should be used just the node Id is required, for example; 4) of the devices you wish to associate this group with. Multiple nodes and endpoints can also be set at once by separating individual values by a comma (3/2,4,5/3,...)."
+						   
+				input name: "ep1McAssocGroup4", type: "text", required: false,
+					title: "MC Endpoint 1 Association group 4: \n" +
+						   "Multilevel Switch Set command will be sent to associated nodes, according to the output state of the device, when the device's output state changes.\n" +
+						   "Not that the configuration parameter 1 needs to be set to monostable switch type for this group to work correctly." +
+						   "NOTE: Insert the combination of Node Id / Endpoint Id values (for example; for node Id 4 and endpoint 2 the values should be entered as 4/2, if no endpoint should be used just the node Id is required, for example; 4) of the devices you wish to associate this group with. Multiple nodes and endpoints can also be set at once by separating individual values by a comma (3/2,4,5/3,...)."
+						
+				input name: "ep2McAssocGroup2", type: "text", required: false,
+					title: "MC Endpoint 2 Association group 2: \n" +
+						   "Multilevel Sensor Reports will be sent to associated nodes, according to the state of a connected analogue sensor.\n" +
+						   "NOTE: Insert the combination of Node Id / Endpoint Id values (for example; for node Id 4 and endpoint 2 the values should be entered as 4/2, if no endpoint should be used just the node Id is required, for example; 4) of the devices you wish to associate this group with. Multiple nodes and endpoints can also be set at once by separating individual values by a comma (3/2,4,5/3,...)."
+						  
+				input name: "ep3McAssocGroup2", type: "text", required: false,
+					title: "MC Endpoint 3 Association group 2: \n" +
+						   "Multilevel Sensor Reports will be sent to associated nodes, according to the state of a connected temperature sensor.\n" +
+						   "NOTE: Insert the combination of Node Id / Endpoint Id values (for example; for node Id 4 and endpoint 2 the values should be entered as 4/2, if no endpoint should be used just the node Id is required, for example; 4) of the devices you wish to associate this group with. Multiple nodes and endpoints can also be set at once by separating individual values by a comma (3/2,4,5/3,...)."
+						
+						  
 	}
 }
 /**
@@ -405,10 +457,20 @@ def convertDegrees(scaleParam, encapCmd){
  * @return List of commands that will be executed in sequence with 500 ms delay inbetween.
 */
 def configure() {
+/*
 	log.debug "Qubino Flush Dimmer 0-10V: configure()"
 	def assocCmds = []
 	assocCmds << zwave.associationV1.associationRemove(groupingIdentifier:1).format()
 	assocCmds << zwave.associationV1.associationSet(groupingIdentifier:1, nodeId:zwaveHubNodeId).format()
+	return delayBetween(assocCmds, 500)
+	*/
+	
+	log.debug "Qubino Flush Dimmer 0-10V: configure()"
+	state.numEndpoints = 0
+	log.debug state.numEndpoints
+	def assocCmds = []
+	assocCmds << zwave.associationV1.associationSet(groupingIdentifier:1, nodeId:zwaveHubNodeId).format()
+	assocCmds << zwave.multiChannelV3.multiChannelEndPointGet().format()
 	return delayBetween(assocCmds, 500)
 }
 /**
@@ -462,6 +524,8 @@ def setLevel(level) {
 def setAssociation() {
 	log.debug "Qubino Flush Dimmer 0-10V: setAssociation()"
 	def assocSet = []
+	
+	//Singlechannel Association group section
 	if(settings.assocGroup2 != null){
 		def group2parsed = settings.assocGroup2.tokenize(",")
 		if(group2parsed == null){
@@ -517,6 +581,104 @@ def setAssociation() {
 	}else{
 		assocSet << zwave.associationV2.associationRemove(groupingIdentifier:6).format()
 	}
+	
+	if(settings.ep1McAssocGroup2 != null){
+		def ep1McAssocGroup2Parsed = settings.ep1McAssocGroup2.tokenize(",")
+		if(ep1McAssocGroup2Parsed != null){ //can contain numbers, number/number
+			for (int i = 0; i < ep1McAssocGroup2Parsed.size(); i++) {
+				if(ep1McAssocGroup2Parsed[i].contains("/")){ // multichannel combo of node//endpoint
+					def ep1McAssocGroup2ParsedSplit = ep1McAssocGroup2Parsed[i].tokenize("/")
+					assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:1).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 2, nodeId: [0,ep1McAssocGroup2ParsedSplit[0].toInteger(), ep1McAssocGroup2ParsedSplit[1].toInteger()])).format()
+				}else{
+					assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:1).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 2, nodeId: [ep1McAssocGroup2Parsed[i].toInteger()])).format()
+				}
+			}
+		}
+		else{
+			assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:1).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationRemove(groupingIdentifier: 2, nodeId: [0])).format()
+		}
+	}
+	else{
+		assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:1).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationRemove(groupingIdentifier: 2)).format()
+	}
+	if(settings.ep1McAssocGroup3 != null){
+		def ep1McAssocGroup3Parsed = settings.ep1McAssocGroup3.tokenize(",")
+		if(ep1McAssocGroup3Parsed != null){ //can contain numbers, number/number
+			for (int i = 0; i < ep1McAssocGroup3Parsed.size(); i++) {
+				if(ep1McAssocGroup3Parsed[i].contains("/")){ // multichannel combo of node//endpoint
+					def ep1McAssocGroup3ParsedSplit = ep1McAssocGroup3Parsed[i].tokenize("/")
+					assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:1).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 3, nodeId: [0,ep1McAssocGroup3ParsedSplit[0].toInteger(), ep1McAssocGroup3ParsedSplit[1].toInteger()])).format()
+				}else{
+					assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:1).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 3, nodeId: [ep1McAssocGroup3Parsed[i].toInteger()])).format()
+				}
+			}
+		}
+		else{
+			assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:1).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationRemove(groupingIdentifier: 3, nodeId: [0])).format()
+		}
+	}
+	else{
+		assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:1).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationRemove(groupingIdentifier: 3)).format()
+	}
+	if(settings.ep1McAssocGroup4 != null){
+		def ep1McAssocGroup4Parsed = settings.ep1McAssocGroup4.tokenize(",")
+		if(ep1McAssocGroup4Parsed != null){ //can contain numbers, number/number
+			for (int i = 0; i < ep1McAssocGroup4Parsed.size(); i++) {
+				if(ep1McAssocGroup4Parsed[i].contains("/")){ // multichannel combo of node//endpoint
+					def ep1McAssocGroup4ParsedSplit = ep1McAssocGroup4Parsed[i].tokenize("/")
+					assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:1).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 4, nodeId: [0,ep1McAssocGroup4ParsedSplit[0].toInteger(), ep1McAssocGroup4ParsedSplit[1].toInteger()])).format()
+				}else{
+					assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:1).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 4, nodeId: [ep1McAssocGroup4Parsed[i].toInteger()])).format()
+				}
+			}
+		}
+		else{
+			assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:1).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationRemove(groupingIdentifier: 4, nodeId: [0])).format()
+		}
+	}
+	else{
+		assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:1).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationRemove(groupingIdentifier: 4)).format()
+	}
+	if(settings.ep2McAssocGroup2 != null){
+		def ep2McAssocGroup2Parsed = settings.ep2McAssocGroup2.tokenize(",")
+		if(ep2McAssocGroup2Parsed != null){ //can contain numbers, number/number
+			for (int i = 0; i < ep2McAssocGroup2Parsed.size(); i++) {
+				if(ep2McAssocGroup2Parsed[i].contains("/")){ // multichannel combo of node//endpoint
+					def ep2McAssocGroup2ParsedSplit = ep2McAssocGroup2Parsed[i].tokenize("/")
+					assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 2, nodeId: [0,ep2McAssocGroup2ParsedSplit[0].toInteger(), ep2McAssocGroup2ParsedSplit[1].toInteger()])).format()
+				}else{
+					assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 2, nodeId: [ep2McAssocGroup2Parsed[i].toInteger()])).format()
+				}
+			}
+		}
+		else{
+			assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationRemove(groupingIdentifier: 2, nodeId: [0])).format()
+		}
+	}
+	else{
+		assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationRemove(groupingIdentifier: 2)).format()
+	}
+
+	if(settings.ep3McAssocGroup2 != null){
+		def ep3McAssocGroup2Parsed = settings.ep3McAssocGroup2.tokenize(",")
+		if(ep3McAssocGroup2Parsed != null){ //can contain numbers, number/number
+			for (int i = 0; i < ep3McAssocGroup2Parsed.size(); i++) {
+				if(ep3McAssocGroup2Parsed[i].contains("/")){ // multichannel combo of node//endpoint
+					def ep3McAssocGroup2ParsedSplit = ep3McAssocGroup2Parsed[i].tokenize("/")
+					assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:3).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 2, nodeId: [0,ep3McAssocGroup2ParsedSplit[0].toInteger(), ep3McAssocGroup2ParsedSplit[1].toInteger()])).format()
+				}else{
+					assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:3).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 2, nodeId: [ep3McAssocGroup2Parsed[i].toInteger()])).format()
+				}
+			}
+		}
+		else{
+			assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:3).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationRemove(groupingIdentifier: 2, nodeId: [0])).format()
+		}
+	}
+	else{
+		assocSet << zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:3).encapsulate(zwave.multiChannelAssociationV2.multiChannelAssociationRemove(groupingIdentifier: 2)).format()
+	}
+	
 	if(assocSet.size() > 0){
 		return delayBetween(assocSet, 500)
 	}
@@ -643,9 +805,11 @@ def parse(String description) {
 */
 def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd){
 	log.debug "Qubino Flush Dimmer 0-10V: SensorMultilevelReport handler fired"
+	
 	def resultEvents = []
 	resultEvents << createEvent(name:"temperature", value: convertDegrees(location.temperatureScale,cmd), unit:"°"+location.temperatureScale, descriptionText: "Temperature: "+convertDegrees(location.temperatureScale,cmd)+"°"+location.temperatureScale)
 	return resultEvents
+	
 }
 /**
  * Event handler for received Switch Multilevel Report frames.
@@ -678,5 +842,85 @@ def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cm
 */
 def zwaveEvent(physicalgraph.zwave.commands.configurationv2.ConfigurationReport cmd){
 	log.debug "firing configuration report event"
-	log.debug cmd.configurationValue
+	log.debug cmd
+	log.debug cmd.scaledConfigurationValue
+	if(cmd.parameterNumber == 1){
+		if(cmd.scaledConfigurationValue > 2){
+			log.debug "configurable input sensor enabled"
+			state.i1SensorConnected = true
+		}
+	}
+}
+/**
+ * Event handler for received MultiChannelEndPointReport commands. Used to distinguish when the device is in singlechannel or multichannel configuration. 
+ *
+ * @param cmd communication frame
+ * @return commands to set up a MC Lifeline association.
+*/
+def zwaveEvent(physicalgraph.zwave.commands.multichannelv3.MultiChannelEndPointReport cmd){
+	log.debug "Qubino Flush Shutter DC: firing MultiChannelEndPointReport"
+	if(cmd.endPoints > 0){
+		state.numEndpoints = cmd.endPoints;
+	}
+
+	def cmds = []
+	cmds << response(zwave.associationV1.associationRemove(groupingIdentifier:1).format())
+	cmds << response(zwave.configurationV1.configurationGet(parameterNumber: 1).format())
+	cmds << response(zwave.multiChannelAssociationV2.multiChannelAssociationSet(groupingIdentifier: 1, nodeId: [0,zwaveHubNodeId,1]).format())
+	return cmds
+}
+/**
+ * Event handler for received MC Encapsulated Switch Multilevel Report frames.
+ *
+ * @param cmd communication frame, command mc encapsulated communication frame; needed to distinguish sources
+ * @return List of events to update the ON / OFF and analogue control elements with received values.
+*/
+def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd, physicalgraph.zwave.commands.multichannelv3.MultiChannelCmdEncap command){
+	log.debug "Qubino Flush Shutter DC: firing MC sensor multilevel event"
+	def result = []
+	switch(command.sourceEndPoint){
+		case 1:
+			result << createEvent(name:"temperature", value: convertDegrees(location.temperatureScale,cmd), unit:"°"+location.temperatureScale, descriptionText: "Temperature: "+convertDegrees(location.temperatureScale,cmd)+"°"+location.temperatureScale, isStateChange: true)
+		break;
+		case 2: 
+			if(state.i1SensorConnected){
+				log.debug "I1 sensor enabled"
+				result << createEvent(name:"i1Sensor", value: cmd.scaledSensorValue, descriptionText: "I1 sensor: "+cmd.scaledSensorValue, isStateChange: true)
+			}else{
+				result << createEvent(name:"temperature", value: convertDegrees(location.temperatureScale,cmd), unit:"°"+location.temperatureScale, descriptionText: "Temperature: "+convertDegrees(location.temperatureScale,cmd)+"°"+location.temperatureScale, isStateChange: true)
+			}
+		break;
+		case 3:
+			result << createEvent(name:"temperature", value: convertDegrees(location.temperatureScale,cmd), unit:"°"+location.temperatureScale, descriptionText: "Temperature: "+convertDegrees(location.temperatureScale,cmd)+"°"+location.temperatureScale, isStateChange: true)
+		break;
+	}
+	return result
+}
+/**
+ * Event handler for received MC Encapsulated Switch Multilevel Report frames.
+ *
+ * @param void
+ * @return List of events to update the ON / OFF and analogue control elements with received values.
+*/
+def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelReport cmd, physicalgraph.zwave.commands.multichannelv3.MultiChannelCmdEncap command){
+	log.debug "firing switch multilevel event"
+	log.debug state.numEndpoints
+	def result = []
+	result << createEvent(name:"switch", value: cmd.value ? "on" : "off")
+	result << createEvent(name:"level", value: cmd.value, unit:"%", descriptionText:"${device.displayName} dimmed to ${cmd.value==255 ? 100 : cmd.value}%")
+	return result
+}
+/**
+ * Event handler for received Multi Channel Encapsulated commands.
+ *
+ * @param cmd encapsulated communication frame
+ * @return parsed event.
+*/
+def zwaveEvent(physicalgraph.zwave.commands.multichannelv3.MultiChannelCmdEncap cmd){
+	log.debug "Qubino Flush Shutter DC: firing MC Encapsulation event"
+	def encapsulatedCommand = cmd.encapsulatedCommand()
+	//log.debug ("Command from endpoint ${cmd.sourceEndPoint}: ${encapsulatedCommand}")
+	if (encapsulatedCommand) {
+			return zwaveEvent(encapsulatedCommand, cmd)
+	}
 }
