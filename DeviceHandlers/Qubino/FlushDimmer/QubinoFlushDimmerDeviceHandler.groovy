@@ -614,10 +614,10 @@ def setAssociation() {
 	if(settings.assocGroup7 != null){
 		def group7parsed = settings.assocGroup7.tokenize(",")
 		if(group7parsed == null){
-			assocSet << zwave.associationV1.associationSet(groupingIdentifier:7, nodeId:assocGroup6).format()
+			assocSet << zwave.associationV1.associationSet(groupingIdentifier:7, nodeId:assocGroup7).format()
 		}else{
 			group7parsed = convertStringListToIntegerList(group7parsed)
-			assocSet << zwave.associationV1.associationSet(groupingIdentifier:7, nodeId:group6parsed).format()
+			assocSet << zwave.associationV1.associationSet(groupingIdentifier:7, nodeId:group7parsed).format()
 		}
 	}else{
 		assocSet << zwave.associationV2.associationRemove(groupingIdentifier:7).format()
