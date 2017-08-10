@@ -2,7 +2,7 @@
  *  Qubino Flush Shutter
  *	Device Handler 
  *	Version 1.0
- *  Date: 10.3.2017
+ *  Date: 10.8.2017
  *	Author: Kristjan Jam&scaron;ek (Kjamsek), Goap d.o.o.
  *  Copyright 2017 Kristjan Jam&scaron;ek
  *
@@ -36,6 +36,7 @@
  *	CHANGELOG:
  *	0.99: Final release code cleanup and commenting
  *	1.00: Added comments to code for readability
+ *  1.10: Added Stop button to stop vertical axis motion
  */
 metadata {
 	definition (name: "Qubino Flush Shutter", namespace: "Goap", author: "Kristjan Jam&scaron;ek") {
@@ -57,6 +58,7 @@ metadata {
 		command "refreshPowerConsumption" //command to issue Meter Get requests for KWH measurements from the device, W are already shown as part of Pwer Meter capability
 		command "resetPower" //command to issue Meter Reset commands to reset accumulated pwoer measurements
 		command "calibrate" //command to calibrate the shutter module
+		command "stop" //command to stop the vertical blind movement
 		command "setSlatLevel" //command to issue slat tilting controls
 		command "openSlats" //command to set maximum level for slats
 		command "closeSlats" //command to set minimum level for slats
@@ -84,6 +86,9 @@ metadata {
 				attributeState "power", label:'Power level: ${currentValue} W', icon: "st.Appliances.appliances17"
 			}
 	    }
+		standardTile("stop", "device.stop", decoration: "flat", width: 6, height: 2) {
+			state("stop", label:'', action:'stop', icon: "st.sonos.stop-btn")
+		}
 		standardTile("venetianLabel", "device.venetianLabel", decoration: "flat", width: 6, height: 2) {
 			state("venetianLabel", label:'SLAT TILT CONTROLS:')
 		}
@@ -143,7 +148,7 @@ metadata {
 		}
 
 		main("shade")
-		details(["shade", "venetianLabel", "venetianTile", "power", "kwhConsumption", "resetPower", "refreshPowerConsumption", "setConfiguration", "setAssociation", "calibrate"])
+		details(["shade", "stop", "venetianLabel", "venetianTile", "power", "kwhConsumption", "resetPower", "refreshPowerConsumption", "setConfiguration", "setAssociation", "calibrate"])
 	}
 	preferences {
 /**
@@ -409,7 +414,7 @@ def stop() {
 	def cmds = []
 	cmds << zwave.switchMultilevelV3.switchMultilevelStopLevelChange().format()
 	cmds << zwave.switchMultilevelV3.switchMultilevelGet().format()
-	return delayBetween(cmds, 500)
+	return delayBetween(cmds, 1000)
 }
 /**
  * stopSlats command handler. Issues StopLevelChange to endpoint 2 of the device when operating as multichannel device handler.
@@ -453,7 +458,20 @@ def close() {
 */
 def openSlats(){
 	log.debug "Qubino Flush Shutter: openSlats()"
-	zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelSet(value: 0xFF, dimmingDuration: 0x00)).format()
+	//zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelSet(value: 0xFF, dimmingDuration: 0x00)).format()//change regarding full open state, will revert after discussion with sigma
+	log.debug settings.param72
+	if(settings.param72 == null){
+		return delayBetween([
+			zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelSet(value: 0x63, dimmingDuration: 0x00)).format(),
+			zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelGet()).format()
+		], 1500)
+	}else{
+		def tempTurningTime = settings.param72.toInteger()*10
+		return delayBetween([
+			zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelSet(value: 0x63, dimmingDuration: 0x00)).format(),
+			zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelGet()).format()
+		], tempTurningTime)
+	}
 }
 /**
  * Command handler for close slats command. It issues a Switch Multilevel Set command with value 0x00 to endpoint 2 of the device and instantaneous duration.
@@ -463,7 +481,20 @@ def openSlats(){
 */
 def closeSlats(){
 	log.debug "Qubino Flush Shutter: closeSlats()"
-	zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelSet(value: 0x00, dimmingDuration: 0x00)).format()
+	//zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelSet(value: 0x00, dimmingDuration: 0x00)).format()
+	log.debug settings.param72
+	if(settings.param72 == null){
+		return delayBetween([
+			zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelSet(value: 0x00, dimmingDuration: 0x00)).format(),
+			zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelGet()).format()
+		], 1500)
+	}else{
+		def tempTurningTime = settings.param72.toInteger()*10
+		return delayBetween([
+			zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelSet(value: 0x00, dimmingDuration: 0x00)).format(),
+			zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelGet()).format()
+		], tempTurningTime)
+	}
 }
 /**
  * Command handler for setting the slat tilt level. It issues a Switch Multilevel Set command with specified value and instantaneous duration.
@@ -476,7 +507,19 @@ def setSlatLevel(level) {
 	log.debug "Qubino Flush Shutter: setSlatLevel()"
 	log.debug level
 	if(level > 99) level = 99
-	zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelSet(value: level, dimmingDuration: 0x00)).format()
+	//zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelSet(value: level, dimmingDuration: 0x00)).format()
+	if(settings.param72 == null){
+		return delayBetween([
+			zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelSet(value: level, dimmingDuration: 0x00)).format(),
+			zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelGet()).format()
+		], 1500)
+	}else{
+		def tempTurningTime = settings.param72.toInteger()*10
+		return delayBetween([
+			zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelSet(value: level, dimmingDuration: 0x00)).format(),
+			zwave.multiChannelV3.multiChannelCmdEncap(sourceEndPoint:1, destinationEndPoint:2).encapsulate(zwave.switchMultilevelV3.switchMultilevelGet()).format()
+		], tempTurningTime)
+	}
 }
 /**
  * Command handler for calibrating the shutter module. It does the same as setting configuration parameter 78 to 1. Available on the details page for convenience.
@@ -545,7 +588,7 @@ def setAssociation() {
 	if(settings.assocGroup2 != null){
 		def group2parsed = settings.assocGroup2.tokenize(",")
 		if(group2parsed == null){
-			assocSet << zwave.associationV1.associationSet(groupingIdentifier:2, nodeId:assocGroup2).format()
+			assocSet << zwave.associationV1.associationSet(groupingIdentifier:2, nodeId:settings.assocGroup2).format()
 		}else{
 			group2parsed = convertStringListToIntegerList(group2parsed)
 			assocSet << zwave.associationV1.associationSet(groupingIdentifier:2, nodeId:group2parsed).format()
@@ -556,7 +599,7 @@ def setAssociation() {
 	if(settings.assocGroup3 != null){
 		def group3parsed = settings.assocGroup3.tokenize(",")
 		if(group3parsed == null){
-			assocSet << zwave.associationV1.associationSet(groupingIdentifier:3, nodeId:assocGroup3).format()
+			assocSet << zwave.associationV1.associationSet(groupingIdentifier:3, nodeId:settings.assocGroup3).format()
 		}else{
 			group3parsed = convertStringListToIntegerList(group3parsed)
 			assocSet << zwave.associationV1.associationSet(groupingIdentifier:3, nodeId:group3parsed).format()
@@ -567,7 +610,7 @@ def setAssociation() {
 	if(settings.assocGroup4 != null){
 		def group4parsed = settings.assocGroup4.tokenize(",")
 		if(group4parsed == null){
-			assocSet << zwave.associationV1.associationSet(groupingIdentifier:4, nodeId:assocGroup4).format()
+			assocSet << zwave.associationV1.associationSet(groupingIdentifier:4, nodeId:settings.assocGroup4).format()
 		}else{
 			group4parsed = convertStringListToIntegerList(group4parsed)
 			assocSet << zwave.associationV1.associationSet(groupingIdentifier:4, nodeId:group4parsed).format()
@@ -578,7 +621,7 @@ def setAssociation() {
 	if(settings.assocGroup5 != null){
 		def group5parsed = settings.assocGroup5.tokenize(",")
 		if(group5parsed == null){
-			assocSet << zwave.associationV1.associationSet(groupingIdentifier:5, nodeId:assocGroup5).format()
+			assocSet << zwave.associationV1.associationSet(groupingIdentifier:5, nodeId:settings.assocGroup5).format()
 		}else{
 			group5parsed = convertStringListToIntegerList(group5parsed)
 			assocSet << zwave.associationV1.associationSet(groupingIdentifier:5, nodeId:group5parsed).format()
@@ -589,7 +632,7 @@ def setAssociation() {
 	if(settings.assocGroup6 != null){
 		def group6parsed = settings.assocGroup6.tokenize(",")
 		if(group6parsed == null){
-			assocSet << zwave.associationV1.associationSet(groupingIdentifier:6, nodeId:assocGroup6).format()
+			assocSet << zwave.associationV1.associationSet(groupingIdentifier:6, nodeId:settings.assocGroup6).format()
 		}else{
 			group6parsed = convertStringListToIntegerList(group6parsed)
 			assocSet << zwave.associationV1.associationSet(groupingIdentifier:6, nodeId:group6parsed).format()
@@ -600,10 +643,10 @@ def setAssociation() {
 	if(settings.assocGroup7 != null){
 		def group7parsed = settings.assocGroup7.tokenize(",")
 		if(group7parsed == null){
-			assocSet << zwave.associationV1.associationSet(groupingIdentifier:7, nodeId:assocGroup6).format()
+			assocSet << zwave.associationV1.associationSet(groupingIdentifier:7, nodeId:settings.assocGroup7).format()
 		}else{
 			group7parsed = convertStringListToIntegerList(group7parsed)
-			assocSet << zwave.associationV1.associationSet(groupingIdentifier:7, nodeId:group6parsed).format()
+			assocSet << zwave.associationV1.associationSet(groupingIdentifier:7, nodeId:group7parsed).format()
 		}
 	}else{
 		assocSet << zwave.associationV2.associationRemove(groupingIdentifier:7).format()
@@ -611,7 +654,7 @@ def setAssociation() {
 	if(settings.assocGroup8 != null){
 		def group8parsed = settings.assocGroup8.tokenize(",")
 		if(group8parsed == null){
-			assocSet << zwave.associationV1.associationSet(groupingIdentifier:8, nodeId:assocGroup8).format()
+			assocSet << zwave.associationV1.associationSet(groupingIdentifier:8, nodeId:settings.assocGroup8).format()
 		}else{
 			group8parsed = convertStringListToIntegerList(group8parsed)
 			assocSet << zwave.associationV1.associationSet(groupingIdentifier:8, nodeId:group8parsed).format()
@@ -622,7 +665,7 @@ def setAssociation() {
 	if(settings.assocGroup9 != null){
 		def group9parsed = settings.assocGroup9.tokenize(",")
 		if(group9parsed == null){
-			assocSet << zwave.associationV1.associationSet(groupingIdentifier:9, nodeId:assocGroup9).format()
+			assocSet << zwave.associationV1.associationSet(groupingIdentifier:9, nodeId:settings.assocGroup9).format()
 		}else{
 			group9parsed = convertStringListToIntegerList(group9parsed)
 			assocSet << zwave.associationV1.associationSet(groupingIdentifier:9, nodeId:group9parsed).format()
