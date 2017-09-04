@@ -2,7 +2,7 @@
  *  Qubino DIN Dimmer
  *	Device Handler 
  *	Version 1.0
- *  Date: 22.2.2017
+ *  Date: 4.9.2017
  *	Author: Kristjan Jam&scaron;ek (Kjamsek), Goap d.o.o.
  *  Copyright 2017 Kristjan Jam&scaron;ek
  *
