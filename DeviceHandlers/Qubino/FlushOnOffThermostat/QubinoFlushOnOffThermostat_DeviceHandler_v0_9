@@ -1,7 +1,7 @@
 /**
  *  Qubino Flush On Off Thermostat
  *	Device Handler 
- *	Version 1.0
+ *	Version 0.9
  *  Date: 12.12.2017
  *	Author: Kristjan Jam&scaron;ek (Kjamsek), Goap d.o.o.
  *  Copyright 2017 Kristjan Jam&scaron;ek
@@ -31,8 +31,8 @@
  *  - Implement secure mode
  *
  *	CHANGELOG:
- *	0.99: Final release code cleanup and commenting
- *	1.00: Added comments to code for readability
+ *	0.98: Final release code cleanup and commenting
+ *	0.99: Added comments to code for readability
  */
 metadata {
 	definition (name: "Qubino On Off Thermostat", namespace: "Goap", author: "Kristjan Jam&scaron;ek") {
