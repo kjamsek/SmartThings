@@ -59,9 +59,9 @@ metadata {
 		command "resetPower" //command to issue Meter Reset commands to reset accumulated pwoer measurements
 		command "calibrate" //command to calibrate the shutter module
 		command "stop" //command to stop the vertical blind movement
-		command "setSlatLevel" //command to issue slat tilting controls
-		command "openSlats" //command to set maximum level for slats
-		command "closeSlats" //command to set minimum level for slats
+		//command "setSlatLevel" //command to issue slat tilting controls
+		//command "openSlats" //command to set maximum level for slats
+		//command "closeSlats" //command to set minimum level for slats
 		
         fingerprint mfr:"0159", prod:"0003", model:"0052"  //Manufacturer Information value for Qubino Flush Shutter
 	}
@@ -74,9 +74,9 @@ metadata {
 	tiles(scale: 2) {
 		multiAttributeTile(name:"shade", type: "generic", width: 6, height: 4, canChangeIcon: true){
 			tileAttribute ("device.windowShade", key: "PRIMARY_CONTROL") {
-				attributeState "open", label:'${name}', action:"close", icon:"st.Home.home9", backgroundColor:"#79b821", nextState:"closing"
+				attributeState "opened", label:'${name}', action:"close", icon:"st.Home.home9", backgroundColor:"#79b821", nextState:"closing"
 				attributeState "closed", label:'${name}', action:"open", icon:"st.Home.home9", backgroundColor:"#ffffff", nextState:"opening"
-				attributeState "opening", label:'${name}', action:"close", icon:"st.Home.home9", backgroundColor:"#79b821", nextState:"open"
+				attributeState "opening", label:'${name}', action:"close", icon:"st.Home.home9", backgroundColor:"#79b821", nextState:"opened"
 				attributeState "closing", label:'${name}', action:"open", icon:"st.Home.home9", backgroundColor:"#ffffff", nextState:"closed"
 			}
 			tileAttribute ("device.level", key: "SLIDER_CONTROL") {
@@ -89,6 +89,7 @@ metadata {
 		standardTile("stop", "device.stop", decoration: "flat", width: 6, height: 2) {
 			state("stop", label:'', action:'stop', icon: "st.sonos.stop-btn")
 		}
+        /*
 		standardTile("venetianLabel", "device.venetianLabel", decoration: "flat", width: 6, height: 2) {
 			state("venetianLabel", label:'SLAT TILT CONTROLS:')
 		}
@@ -103,6 +104,7 @@ metadata {
 				attributeState "venetianLevel", action:"setSlatLevel"
 			}
 	    }
+        */
 		standardTile("power", "device.power", decoration: "flat", width: 3, height: 3) {
 			state("power", label:'${currentValue} W', icon: 'st.Appliances.appliances17')
 		}
@@ -148,7 +150,7 @@ metadata {
 		}
 
 		main("shade")
-		details(["shade", "stop", "venetianLabel", "venetianTile", "power", "kwhConsumption", "resetPower", "refreshPowerConsumption", "setConfiguration", "setAssociation", "calibrate"])
+		details(["shade", "stop"/*, "venetianLabel", "venetianTile"*/, "power", "kwhConsumption", "resetPower", "refreshPowerConsumption", "setConfiguration", "setAssociation", "calibrate"])
 	}
 	preferences {
 /**
@@ -555,7 +557,8 @@ def refreshPowerConsumption() {
 	log.debug "Qubino Flush Shutter: refreshPowerConsumption()"
 	delayBetween([
 		zwave.meterV2.meterGet(scale: 0).format(),
-		zwave.meterV2.meterGet(scale: 2).format()
+		zwave.meterV2.meterGet(scale: 2).format(),
+        zwave.switchMultilevelV3.switchMultilevelGet().format()
     ], 1000)
 }
 /**
@@ -845,10 +848,12 @@ def zwaveEvent(physicalgraph.zwave.commands.meterv3.MeterReport cmd) {
 	def result = []
 	switch(cmd.scale){
 		case 0:
-			result << createEvent(name:"kwhConsumption", value: cmd.scaledMeterValue, unit:"kWh", descriptionText:"${device.displayName} consumed ${cmd.scaledMeterValue} kWh", isStateChange: true)
+    		def currentPower = device.currentState("kwhConsumption")
+			result << createEvent(name:"kwhConsumption", value: cmd.scaledMeterValue, unit:"kWh", descriptionText:"${device.displayName} consumed ${cmd.scaledMeterValue} kWh", isStateChange: (cmd.scaledMeterValue.toDouble() != currentPower?.value.toDouble()))
 			break;
 		case 2:
-			result << createEvent(name:"power", value: cmd.scaledMeterValue, unit:"W", descriptionText:"${device.displayName} consumes ${cmd.scaledMeterValue} W", isStateChange: true)
+    		def currentPower = device.currentState("power")
+			result << createEvent(name:"power", value: cmd.scaledMeterValue, unit:"W", descriptionText:"${device.displayName} consumes ${cmd.scaledMeterValue} W", isStateChange: (cmd.scaledMeterValue.toDouble() != currentPower?.value.toDouble()))
 			break;
 	}
 	return result
@@ -871,13 +876,16 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv2.ConfigurationReport 
  * @return Main roller level state events.
 */
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd){
-	log.debug "Qubino Flush Shutter: firing basic report event"
+    def currentState = device.currentState("windowShade")
+    def currentLevel = device.currentState("level")
+    def desiredState = cmd.value ? "open" : "closed"
+	log.debug "Qubino Flush Shutter: firing basic report event (currentState: ${currentState?.value}, currentLevel: ${currentLevel?.value}, desiredState: $desiredState, desiredLevel: ${cmd.value})"
 	def result = []
-	result << createEvent(name:"windowShade", value: cmd.value ? "open" : "closed", isStateChange: true)
+	result << createEvent(name:"windowShade", value: desiredState, isStateChange: (currentState?.value!=desiredState))
 	if(cmd.value > 99){
 		result << createEvent(name:"level", value: cmd.value, unit:"%", descriptionText:"${device.displayName} is uncalibrated! Please press calibrate!", isStateChange: true)
 	}else{
-		result << createEvent(name:"level", value: cmd.value, unit:"%", descriptionText:"${device.displayName} moved to ${cmd.value==99 ? 100 : cmd.value}%", isStateChange: true)
+		result << createEvent(name:"level", value: cmd.value, unit:"%", descriptionText:"${device.displayName} moved to ${cmd.value==99 ? 100 : cmd.value}%", isStateChange: (currentLevel?.value.toInteger()!=cmd.value.toInteger()))
 	}
 	return result
 }
